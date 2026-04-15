@@ -94,7 +94,7 @@ async function loadPeriodDetail(id) {
               ${!runs.length
                 ? `<tr><td colspan="11" style="text-align:center;padding:50px;color:var(--text-muted)">
                     <div style="font-size:2rem;margin-bottom:8px">💼</div>
-                    No runs yet. ${period.status === 'Open' ? 'Click "Process Payroll" to generate.' : ''}
+                    No runs yet. ${period.status === 'Open' ? 'Create or process the payroll period to generate the latest employee payslips.' : ''}
                    </td></tr>`
                 : runs.map(r => `
                   <tr ondblclick="viewPayslip(${r.run_id})" style="cursor:pointer">
@@ -239,10 +239,11 @@ async function createPeriod() {
   const btn = document.querySelector('#modal-new-period .btn-primary');
   btn.classList.add('btn-loading'); btn.disabled = true;
   try {
-    await API.post('/payroll/periods', { period_name: name, period_year: year, period_month: month, pay_date: pay, start_date: start, end_date: end, working_days: wdays });
-    toast('success', 'Created!', `${name} period has been created.`);
+    const result = await API.post('/payroll/periods', { period_name: name, period_year: year, period_month: month, pay_date: pay, start_date: start, end_date: end, working_days: wdays });
+    toast('success', 'Payroll updated', result?.message || `${name} period has been created and processed for all active employees.`);
     closeModal('modal-new-period');
     await loadPeriods();
+    if (result?.periodId) await selectPeriod(result.periodId);
   } catch (e) {
     toast('error', 'Error', e.message);
   } finally {

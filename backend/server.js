@@ -1459,15 +1459,23 @@ app.get('/api/payroll/periods', authenticate, requirePerm('payroll.view'), async
 });
 
 app.post('/api/payroll/periods', authenticate, requirePerm('payroll.process'), async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { period_name, period_year, period_month, pay_date, start_date, end_date, working_days } = req.body;
-    const [result] = await pool.execute(
+    await conn.beginTransaction();
+    const [result] = await conn.execute(
       "INSERT INTO payroll_periods (period_name,period_year,period_month,pay_date,start_date,end_date,working_days,status) VALUES (?,?,?,?,?,?,?, 'Open')",
       [period_name, period_year, period_month, pay_date, start_date, end_date, working_days || 22]
     );
-    res.json({ success: true, periodId: result.insertId });
+    await conn.execute('CALL sp_process_period(?,?)', [result.insertId, req.user.userId]);
+    await conn.commit();
+    await logAudit(req.user.userId, req.user.username, 'CREATE', 'PAYROLL', result.insertId, null, `Created and processed payroll period ${period_name}`);
+    res.json({ success: true, periodId: result.insertId, message: 'Payroll period created and processed for all active employees.' });
   } catch (e) {
+    await conn.rollback();
     res.status(500).json({ error: e.message });
+  } finally {
+    conn.release();
   }
 });
 
