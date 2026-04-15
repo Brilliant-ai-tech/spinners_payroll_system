@@ -41,15 +41,6 @@ npm run dev             # development (with nodemon auto-reload)
 ```
 http://localhost:3001
 ```
-
-## Default Login Credentials
-
-Email                  Password   Role
-admin@spinners.co.ke   admin123   Admin (full access)
-hr@spinners.co.ke      hr1234     HR Manager
-payroll@spinners.co.ke pay1234    Payroll Officer
-c.mutua@spinners.co.ke emp1234    Employee (self-service)
-
 > **OTP Note**: With `EMAIL_DEMO_MODE=true`, OTP codes print to the server console. No SMTP setup required.
 
 ## Features
