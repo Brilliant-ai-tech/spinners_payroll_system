@@ -75,10 +75,10 @@ CREATE TABLE IF NOT EXISTS employee_signups (
 
 -- Insert default users
 INSERT IGNORE INTO users (username, email, password_hash, role_id) VALUES
-('admin', 'admin@spinners.co.ke', '$2a$10$NGkrFrPL.nHD6Int5/MFpe1CrV4Wzh0gBN2PCGf7tcsrcv2NhBGF.', 1),
-('hrmanager', 'hr@spinners.co.ke', '$2a$10$MOQF13b4Bo5MVEEx9Lww1.7sxdF3IzIF.1kFAoN60/HGeHnWWgQxK', 2),
-('payroll', 'payroll@spinners.co.ke', '$2a$10$TMTygz/MrIRpx6OtQeuMceY8famUgyiAqrE/VRm7QqQw71ylrHP6G', 3),
-('c.mutua', 'c.mutua@spinners.co.ke', '$2a$10$arbujICwCWA3/vA8H7Vv5OpAyWCaliWMkV8TSL0Fy6uQCdF9Aq.Ke', 4);
+('admin', 'amosbaraka15@gmail.com', '$2a$10$iwKUowQQVNeN72qXZ5T40.zilWUDxb.SzBVeeGCy2OlUgXPpsxdT2', 1),
+('hr', 'hr@spinners.co.ke', '$2a$10$c4k0lA9Iz4RzuA8qY53AieFPJoknZR5xNkb6S8ptP8LEmgT8xx8N.', 2),
+('payroll', 'payroll@spinners.co.ke', '$2a$10$osvyQZETEY.x1Lg5JZAERe0LZCahXsofDrpJMQDCmdLAtfyji01ku', 3),
+('employee', 'c.mutua@spinners.co.ke', '$2a$10$uAZZkC6XUkab8WPP8cjyZ.pNmk6HScun1qDNJZ8RAqcBppKDudn4q', 4);
 
 CREATE TABLE IF NOT EXISTS otp_verifications (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -89,21 +89,6 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
   expires_at DATETIME,
   is_used BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
-
-CREATE TABLE IF NOT EXISTS audit_log (
-  log_id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT NULL,
-  username VARCHAR(60) NULL,
-  action VARCHAR(40) NOT NULL,
-  module VARCHAR(40) NOT NULL,
-  record_id INT NULL,
-  record_ref VARCHAR(50) NULL,
-  description TEXT NULL,
-  ip_address VARCHAR(45) NULL,
-  status ENUM('SUCCESS','FAILED','WARNING') DEFAULT 'SUCCESS',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 

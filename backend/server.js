@@ -361,71 +361,6 @@ async function ensurePermissionSchema() {
   }
 }
 
-const DEFAULT_USER_SEEDS = [
-  { roleCode: 'ADMIN', username: 'admin', email: 'admin@spinners.co.ke', passwordEnv: 'ADMIN_DEFAULT_PASSWORD', defaultPassword: 'admin123', employeeEmail: null },
-  { roleCode: 'HR', username: 'hrmanager', email: 'hr@spinners.co.ke', passwordEnv: 'HR_DEFAULT_PASSWORD', defaultPassword: 'hr123456', employeeEmail: null },
-  { roleCode: 'PAYROLL', username: 'payroll', email: 'payroll@spinners.co.ke', passwordEnv: 'PAYROLL_DEFAULT_PASSWORD', defaultPassword: 'payroll123', employeeEmail: null },
-  { roleCode: 'EMPLOYEE', username: 'c.mutua', email: 'c.mutua@spinners.co.ke', passwordEnv: 'EMPLOYEE_DEFAULT_PASSWORD', defaultPassword: 'employee123', employeeEmail: 'c.mutua@spinners.co.ke' }
-];
-
-function shouldResetSeedPasswords() {
-  return process.env.NODE_ENV !== 'production' || process.env.RESET_DEFAULT_PASSWORDS === 'true';
-}
-
-async function ensureDefaultUsers() {
-  for (const seed of DEFAULT_USER_SEEDS) {
-    const roleId = await getRoleIdByCode(seed.roleCode);
-    if (!roleId) continue;
-
-    const password = process.env[seed.passwordEnv] || seed.defaultPassword;
-    const passwordHash = await bcrypt.hash(password, 10);
-    let employeeId = null;
-
-    if (seed.employeeEmail) {
-      const [[employee]] = await pool.execute('SELECT employee_id FROM employees WHERE email=? LIMIT 1', [seed.employeeEmail]);
-      employeeId = employee?.employee_id || null;
-    }
-
-    const [users] = await pool.execute('SELECT user_id FROM users WHERE email=? LIMIT 1', [seed.email]);
-    if (!users.length) {
-      await pool.execute(
-        `INSERT INTO users (username,email,password_hash,role_id,employee_id,is_active,must_change_pw,approval_status)
-         VALUES (?,?,?,?,?,1,0,'Approved')`,
-        [seed.username, seed.email, passwordHash, roleId, employeeId]
-      );
-      continue;
-    }
-
-    const updates = ['username=?', 'role_id=?', 'employee_id=?', 'is_active=1', 'approval_status=\'Approved\'', 'must_change_pw=0'];
-    const params = [seed.username, roleId, employeeId];
-    if (shouldResetSeedPasswords()) {
-      updates.splice(3, 0, 'password_hash=?');
-      params.splice(3, 0, passwordHash);
-    }
-    params.push(users[0].user_id);
-    await pool.execute(`UPDATE users SET ${updates.join(',')} WHERE user_id=?`, params);
-  }
-}
-
-async function ensureAuditSchema() {
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS audit_log (
-      log_id INT PRIMARY KEY AUTO_INCREMENT,
-      user_id INT NULL,
-      username VARCHAR(60) NULL,
-      action VARCHAR(40) NOT NULL,
-      module VARCHAR(40) NOT NULL,
-      record_id INT NULL,
-      record_ref VARCHAR(50) NULL,
-      description TEXT NULL,
-      ip_address VARCHAR(45) NULL,
-      status ENUM('SUCCESS','FAILED','WARNING') DEFAULT 'SUCCESS',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(user_id)
-    )
-  `);
-}
-
 let initPromise;
 function initApp() {
   if (!initPromise) {
@@ -435,8 +370,6 @@ function initApp() {
       await ensureEmployeeStatusSchema();
       await ensureEmploymentTypeSchema();
       await ensurePermissionSchema();
-      await ensureAuditSchema();
-      await ensureDefaultUsers();
     })();
   }
   return initPromise;
@@ -522,8 +455,7 @@ async function logAudit(userId, username, action, module, recordId, recordRef, d
 // ═══════════════════════════════════════════════════════════════════
 
 app.post('/api/auth/login', async (req, res) => {
-  const email = String(req.body?.email || '').trim().toLowerCase();
-  const password = String(req.body?.password || '');
+  const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
   try {
     const [users] = await pool.execute(
@@ -588,7 +520,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({ step: 'dashboard', token, user: { id: user.user_id, username: user.username, email: user.email, role: user.role_code, employeeId: user.employee_id, permissions } });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message || 'Server error' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

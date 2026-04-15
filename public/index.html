@@ -55,19 +55,19 @@
           </div>
         </div>
         <div id="login-error" style="color:var(--red-light);font-size:var(--text-sm);margin-bottom:12px;display:none"></div>
-        <button type="button" class="btn btn-primary" style="width:100%;" id="login-btn" onclick="doLogin()">
+        <button class="btn btn-primary" style="width:100%;" id="login-btn" onclick="doLogin()">
           <span class="btn-text">Sign in</span>
         </button>
         <div style="text-align:center;margin-top:14px">
-          <a href="#" onclick="event.preventDefault(); showForgot();" style="font-size:var(--text-sm);color:var(--text-muted)">Forgot password?</a>
+          <a href="#" onclick="showForgot()" style="font-size:var(--text-sm);color:var(--text-muted)">Forgot password?</a>
         </div>
         <div style="text-align:center;margin-top:10px">
-          <a href="#" onclick="event.preventDefault(); showSignup();" style="font-size:var(--text-sm);color:var(--gold-light)">New employee? Sign up for approval</a>
+          <a href="#" onclick="showSignup()" style="font-size:var(--text-sm);color:var(--gold-light)">New employee? Sign up for approval</a>
         </div>
       </div>
 
       <div id="login-signup" style="display:none">
-        <button type="button" onclick="cancelSignup()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;margin-bottom:12px;font-size:var(--text-sm)">← Back to login</button>
+        <button onclick="cancelSignup()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;margin-bottom:12px;font-size:var(--text-sm)">← Back to login</button>
         <h3 style="margin-bottom:8px;font-size:var(--text-lg)">Employee signup</h3>
         <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:18px">Use your `@spinners.co.ke` email. HR will review your details before you can log in.</p>
         <div class="form-grid-2">
@@ -91,7 +91,7 @@
           <div class="form-group"><label class="form-label required">Confirm password</label><input class="form-control" id="signup-confirm-password" type="password" placeholder="Confirm password"></div>
         </div>
         <div id="signup-error" style="color:var(--red-light);font-size:var(--text-sm);margin:10px 0 12px;display:none"></div>
-        <button type="button" class="btn btn-primary" style="width:100%;" id="signup-btn" onclick="doEmployeeSignup()">
+        <button class="btn btn-primary" style="width:100%;" id="signup-btn" onclick="doEmployeeSignup()">
           <span class="btn-text">Submit for HR approval</span>
         </button>
       </div>
@@ -120,21 +120,21 @@
           <input class="form-control" id="confirm-password" type="password" placeholder="Confirm password">
         </div>
         <div id="pw-error" style="color:var(--red-light);font-size:var(--text-sm);margin-bottom:12px;display:none"></div>
-        <button type="button" class="btn btn-primary" style="width:100%;" id="changepw-btn" onclick="doChangePassword()">
+        <button class="btn btn-primary" style="width:100%;" id="changepw-btn" onclick="doChangePassword()">
           <span class="btn-text">Set Password & Continue</span>
         </button>
       </div>
 
       <!-- FORGOT PASSWORD -->
       <div id="login-forgot" style="display:none">
-        <button type="button" onclick="cancelForgot()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;margin-bottom:12px;font-size:var(--text-sm)">← Back to login</button>
+        <button onclick="cancelForgot()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;margin-bottom:12px;font-size:var(--text-sm)">← Back to login</button>
         <h3 style="margin-bottom:8px;font-size:var(--text-lg)">Reset your password</h3>
         <div id="forgot-step-1-inner">
           <div class="form-group">
             <label class="form-label required">Email address</label>
             <input class="form-control" id="forgot-email" type="email" placeholder="you@spinners.co.ke">
           </div>
-          <button type="button" class="btn btn-primary" style="width:100%;" onclick="doForgotRequest()"><span class="btn-text">Send reset code</span></button>
+          <button class="btn btn-primary" style="width:100%;" onclick="doForgotRequest()"><span class="btn-text">Send reset code</span></button>
         </div>
         <div id="forgot-step-2-inner" style="display:none">
           <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:16px">Enter the 6-digit code sent to your email.</p>
@@ -146,7 +146,7 @@
             <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
             <input class="otp-box" maxlength="1" type="text" inputmode="numeric">
           </div>
-          <button type="button" class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="doForgotVerify()"><span class="btn-text">Verify Code</span></button>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="doForgotVerify()"><span class="btn-text">Verify Code</span></button>
         </div>
         <div id="forgot-step-3-inner" style="display:none">
           <div class="form-group">
@@ -157,7 +157,7 @@
             <label class="form-label required">Confirm password</label>
             <input class="form-control" id="forgot-confirm-pw" type="password" placeholder="Confirm password">
           </div>
-          <button type="button" class="btn btn-primary" style="width:100%;" onclick="doForgotReset()"><span class="btn-text">Reset Password</span></button>
+          <button class="btn btn-primary" style="width:100%;" onclick="doForgotReset()"><span class="btn-text">Reset Password</span></button>
         </div>
         <div id="forgot-error" style="color:var(--red-light);font-size:var(--text-sm);margin-top:10px;display:none"></div>
       </div>
