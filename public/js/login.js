@@ -115,7 +115,18 @@ async function doLogin() {
     btn.classList.remove('btn-loading'); btn.disabled = false;
   }
 }
-document.getElementById('login-password')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('login-email')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    doLogin();
+  }
+});
+document.getElementById('login-password')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    doLogin();
+  }
+});
 
 function initOTPBoxes(containerId, onComplete) {
   const boxes = document.querySelectorAll(`#${containerId} .otp-box`);
