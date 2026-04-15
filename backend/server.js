@@ -103,6 +103,24 @@ function isCompanyEmail(email = '') {
   return email.toLowerCase().endsWith(`@${COMPANY_EMAIL_DOMAIN}`);
 }
 
+function normalizeEmploymentType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'Permanent';
+
+  const aliases = {
+    'full_time': 'Permanent',
+    'full time': 'Permanent',
+    'permanent': 'Permanent',
+    'part_time': 'Part Time',
+    'part time': 'Part Time',
+    'contract': 'Contract',
+    'casual': 'Casual',
+    'intern': 'Intern'
+  };
+
+  return aliases[normalized] || 'Permanent';
+}
+
 async function getRoleIdByCode(roleCode) {
   const [[role]] = await pool.execute('SELECT role_id FROM roles WHERE role_code=?', [roleCode]);
   return role?.role_id || null;
@@ -200,12 +218,49 @@ async function ensureEmployeeStatusSchema() {
 }
 
 // ─── AUTH MIDDLEWARE ─────────────────────────────────────────────────────────
+async function ensureEmploymentTypeSchema() {
+  const tables = ['employees', 'employee_signups'];
+
+  for (const tableName of tables) {
+    const [columns] = await pool.execute(
+      `SELECT COLUMN_NAME
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = ?
+         AND COLUMN_NAME = 'employment_type'
+       LIMIT 1`,
+      [tableName]
+    );
+
+    if (!columns.length) continue;
+
+    await pool.execute(`ALTER TABLE ${tableName} MODIFY COLUMN employment_type VARCHAR(30) NULL`);
+    await pool.execute(`
+      UPDATE ${tableName}
+      SET employment_type = CASE LOWER(TRIM(COALESCE(employment_type, '')))
+        WHEN '' THEN 'Permanent'
+        WHEN 'full_time' THEN 'Permanent'
+        WHEN 'full time' THEN 'Permanent'
+        WHEN 'permanent' THEN 'Permanent'
+        WHEN 'part_time' THEN 'Part Time'
+        WHEN 'part time' THEN 'Part Time'
+        WHEN 'contract' THEN 'Contract'
+        WHEN 'casual' THEN 'Casual'
+        WHEN 'intern' THEN 'Intern'
+        ELSE 'Permanent'
+      END
+    `);
+    await pool.execute(`ALTER TABLE ${tableName} MODIFY COLUMN employment_type VARCHAR(30) NOT NULL DEFAULT 'Permanent'`);
+  }
+}
+
 let initPromise;
 function initApp() {
   if (!initPromise) {
     initPromise = (async () => {
       await ensureEmployeeSignupSchema();
       await ensureEmployeeStatusSchema();
+      await ensureEmploymentTypeSchema();
     })();
   }
   return initPromise;
@@ -667,7 +722,7 @@ app.post('/api/employees', authenticate, requirePerm('employees.create'), async 
     const [result] = await conn.execute(
       `INSERT INTO employees (emp_number,first_name,middle_name,last_name,gender,date_of_birth,national_id,kra_pin,nssf_number,nhif_number,email,phone_primary,marital_status,dept_id,desig_id,branch_id,employment_type,hire_date,status)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Pending')`,
-      [empNumber,d.first_name,d.middle_name||null,d.last_name,d.gender,d.date_of_birth||null,d.national_id||null,d.kra_pin||null,d.nssf_number||null,d.nhif_number||null,d.email||null,d.phone_primary||null,d.marital_status||null,d.dept_id||null,d.desig_id||null,d.branch_id||null,d.employment_type||'Permanent',d.hire_date]
+      [empNumber,d.first_name,d.middle_name||null,d.last_name,d.gender,d.date_of_birth||null,d.national_id||null,d.kra_pin||null,d.nssf_number||null,d.nhif_number||null,d.email||null,d.phone_primary||null,d.marital_status||null,d.dept_id||null,d.desig_id||null,d.branch_id||null,normalizeEmploymentType(d.employment_type),d.hire_date]
     );
     const empId = result.insertId;
     if (d.basic_salary && req.user.role === 'PAYROLL') {
@@ -745,7 +800,7 @@ app.patch('/api/employee-signups/:id/approve', authenticate, requireHROnly, asyn
         signup.marital_status || null,
         signup.dept_id || null,
         signup.desig_id || null,
-        signup.employment_type || 'Permanent',
+        normalizeEmploymentType(signup.employment_type),
         signup.hire_date || null
       ]
     );
@@ -806,7 +861,7 @@ app.put('/api/employees/:id', authenticate, requirePerm('employees.edit'), async
     }
     await pool.execute(
       `UPDATE employees SET first_name=?,middle_name=?,last_name=?,gender=?,date_of_birth=?,national_id=?,kra_pin=?,nssf_number=?,nhif_number=?,email=?,phone_primary=?,marital_status=?,dept_id=?,desig_id=?,branch_id=?,employment_type=?,hire_date=? WHERE employee_id=?`,
-      [d.first_name,d.middle_name||null,d.last_name,d.gender,d.date_of_birth||null,d.national_id||null,d.kra_pin||null,d.nssf_number||null,d.nhif_number||null,d.email||null,d.phone_primary||null,d.marital_status||null,d.dept_id||null,d.desig_id||null,d.branch_id||null,d.employment_type,d.hire_date,id]
+      [d.first_name,d.middle_name||null,d.last_name,d.gender,d.date_of_birth||null,d.national_id||null,d.kra_pin||null,d.nssf_number||null,d.nhif_number||null,d.email||null,d.phone_primary||null,d.marital_status||null,d.dept_id||null,d.desig_id||null,d.branch_id||null,normalizeEmploymentType(d.employment_type),d.hire_date,id]
     );
     if (d.basic_salary && req.user.role === 'PAYROLL') {
       await pool.execute('UPDATE employee_salary SET is_current=0 WHERE employee_id=?', [id]);
