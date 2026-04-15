@@ -97,7 +97,10 @@ const REPORT_COLS = {
     { key: 'emp_number', label: 'Emp #' }, { key: 'full_name', label: 'Name' }, { key: 'dept_name', label: 'Dept' },
     { key: 'type_name', label: 'Leave type' }, { key: 'entitled_days', label: 'Entitled' },
     { key: 'taken_days', label: 'Taken' }, { key: 'pending_days', label: 'Pending' },
-    { key: 'balance', label: 'Balance', render: (v) => `<span style="color:${v>5?'var(--green)':v>0?'var(--gold)':'var(--red)';font-weight:700}">${v}</span>` }
+    { key: 'balance', label: 'Balance', render: (v) => {
+      const color = v > 5 ? 'var(--green)' : v > 0 ? 'var(--gold)' : 'var(--red)';
+      return `<span style="color:${color};font-weight:700">${v}</span>`;
+    } }
   ],
   'attendance-summary': [
     { key: 'emp_number', label: 'Emp #' }, { key: 'full_name', label: 'Name' }, { key: 'dept_name', label: 'Dept' },

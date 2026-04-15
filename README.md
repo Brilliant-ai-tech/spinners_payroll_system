@@ -26,6 +26,18 @@ JWT_SECRET=change_this_in_production
 EMAIL_DEMO_MODE=true   # OTPs print to console - no SMTP needed
 ```
 
+For hosted MySQL services that require TLS/SSL, also set:
+```
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=true
+DB_SSL_CA_PATH=path/to/ca.pem
+```
+
+On Windows, an example `DB_SSL_CA_PATH` would look like:
+```
+C:\Users\Administrator\Downloads\ca.pem
+```
+
 ### 3. Set up the database
 ```bash
 mysql -u root -p < backend/setup.sql
@@ -73,23 +85,52 @@ spinners-payroll/
     setup.js
     setup-leave.js
     setup.sql
-  frontend/
-    public/
-      index.html
-      css/
-        style.css
-      js/
-        app.js
-        login.js
-        dashboard.js
-        employees.js
-        attendance.js
-        leave.js
-        payroll.js
-        reports.js
-        settings.js
-        selfservice.js
-      images/
+  api/
+    index.js
+    [...path].js
+  public/
+    index.html
+    css/
+      style.css
+    js/
+      app.js
+      login.js
+      dashboard.js
+      employees.js
+      attendance.js
+      leave.js
+      payroll.js
+      reports.js
+      settings.js
+      selfservice.js
+    images/
+
+## Deploy to Vercel
+
+### 1. Push the repo to GitHub
+Commit your current code and push it to a GitHub repository.
+
+### 2. Import the project into Vercel
+- Open Vercel dashboard
+- Click `Add New Project`
+- Import the GitHub repository
+- Keep the project root as the repository root
+
+### 3. Add environment variables
+Copy the keys from `.env.example` into Vercel Project Settings -> Environment Variables.
+
+Important values:
+- `CORS_ORIGIN` should be your Vercel production URL, for example `https://your-project.vercel.app`
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME` must point to a MySQL database reachable from Vercel
+- If you want live OTP emails, set the SMTP variables and `EMAIL_DEMO_MODE=false`
+
+### 4. Deploy
+After saving the environment variables, trigger a production deployment from Vercel.
+
+### Notes
+- Static files are served from the root `public/` folder
+- Express API routes are served through the Vercel `api/` entrypoints
+- Local development still runs with `node backend/server.js`
 ```
 
 ## Design System

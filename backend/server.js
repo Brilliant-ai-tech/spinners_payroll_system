@@ -1,6 +1,8 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const mysql = require('mysql2/promise');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -8,10 +10,9 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
-const frontendPublicDir = path.join(__dirname, '..', 'frontend', 'public');
+const publicDir = path.join(__dirname, '..', 'public');
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
@@ -19,7 +20,23 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE']
 }));
 app.use(express.json());
-app.use(express.static(frontendPublicDir));
+app.use(express.static(publicDir));
+
+function buildMySqlSslConfig() {
+  if (process.env.DB_SSL !== 'true') return undefined;
+
+  const ssl = {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
+  };
+
+  if (process.env.DB_SSL_CA) {
+    ssl.ca = process.env.DB_SSL_CA.replace(/\\n/g, '\n');
+  } else if (process.env.DB_SSL_CA_PATH) {
+    ssl.ca = fs.readFileSync(path.resolve(process.env.DB_SSL_CA_PATH), 'utf8');
+  }
+
+  return ssl;
+}
 
 //  DB POOL 
 const pool = mysql.createPool({
@@ -28,9 +45,11 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
+  connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS || 10000),
   waitForConnections: true,
   connectionLimit: 10,
-  namedPlaceholders: true
+  namedPlaceholders: true,
+  ssl: buildMySqlSslConfig()
 });
 
 // ─── RATE LIMITERS ──────────────────────────────────────────────────────────
@@ -181,6 +200,26 @@ async function ensureEmployeeStatusSchema() {
 }
 
 // ─── AUTH MIDDLEWARE ─────────────────────────────────────────────────────────
+let initPromise;
+function initApp() {
+  if (!initPromise) {
+    initPromise = (async () => {
+      await ensureEmployeeSignupSchema();
+      await ensureEmployeeStatusSchema();
+    })();
+  }
+  return initPromise;
+}
+
+app.use(async (req, res, next) => {
+  try {
+    await initApp();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 function authenticate(req, res, next) {
   const header = req.headers['authorization'];
   if (!header) return res.status(401).json({ error: 'No token' });
@@ -1754,25 +1793,28 @@ app.get('/api/selfservice/leave-requests', authenticate, async (req, res) => {
 });
 
 // ─── SPA CATCH-ALL ──────────────────────────────────────────────────────────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendPublicDir, 'index.html'));
+// ─── START ──────────────────────────────────────────────────────────────────
+app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
-// ─── START ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 
-(async () => {
-  try {
-    await ensureEmployeeSignupSchema();
-    await ensureEmployeeStatusSchema();
-    app.listen(PORT, () => {
-      console.log(`Spinners Payroll Server               `);
-      console.log(`http://localhost:${PORT}           `);
-      console.log(` Mode: ${process.env.EMAIL_DEMO_MODE === 'true' ? 'DEMO (OTPs in console)' : 'LIVE email'} `);
-      console.log(`\n`);
-    });
-  } catch (e) {
-    console.error('Failed to start server:', e);
-    process.exit(1);
-  }
-})();
+if (require.main === module) {
+  (async () => {
+    try {
+      await initApp();
+      app.listen(PORT, () => {
+        console.log('Spinners Payroll Server');
+        console.log(`http://localhost:${PORT}`);
+        console.log(`Mode: ${process.env.EMAIL_DEMO_MODE === 'true' ? 'DEMO (OTPs in console)' : 'LIVE email'}`);
+        console.log('');
+      });
+    } catch (e) {
+      console.error('Failed to start server:', e);
+      process.exit(1);
+    }
+  })();
+}
+
+module.exports = app;
