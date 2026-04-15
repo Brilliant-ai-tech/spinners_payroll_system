@@ -1794,6 +1794,14 @@ app.get('/api/selfservice/leave-requests', authenticate, async (req, res) => {
 
 // ─── SPA CATCH-ALL ──────────────────────────────────────────────────────────
 // ─── START ──────────────────────────────────────────────────────────────────
+app.use('/api', (err, req, res, next) => {
+  console.error('API error:', err);
+  if (res.headersSent) return next(err);
+  res.status(err.statusCode || 500).json({
+    error: err.message || 'Server error'
+  });
+});
+
 app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
