@@ -187,6 +187,25 @@ async function ensureEmployeeSignupSchema() {
   `);
 }
 
+async function ensureUsersApprovalSchema() {
+  const [columns] = await pool.execute(
+    `SELECT COLUMN_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'users'
+       AND COLUMN_NAME = 'approval_status'
+     LIMIT 1`
+  );
+
+  if (!columns.length) {
+    await pool.execute(`
+      ALTER TABLE users
+      ADD COLUMN approval_status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Approved'
+      AFTER is_active
+    `);
+  }
+}
+
 async function ensureEmployeeStatusSchema() {
   const [columns] = await pool.execute(
     `SELECT COLUMN_TYPE
@@ -259,6 +278,7 @@ function initApp() {
   if (!initPromise) {
     initPromise = (async () => {
       await ensureEmployeeSignupSchema();
+      await ensureUsersApprovalSchema();
       await ensureEmployeeStatusSchema();
       await ensureEmploymentTypeSchema();
     })();
