@@ -77,17 +77,19 @@ function renderKPIs(data) {
 }
 
 function renderQuickActions() {
-  const user = Auth.getUser();
-  const role = user.role;
   const actions = [
     { icon: '👤', label: 'Add employee', page: 'employees', action: () => { navigate('employees'); setTimeout(openAddEmployee, 300); }, perm: 'employees.create' },
     { icon: '💰', label: 'Run payroll',  page: 'payroll',   action: () => navigate('payroll'),  perm: 'payroll.process' },
     { icon: '📋', label: 'Attendance',   page: 'attendance', action: () => navigate('attendance'), perm: 'attendance.view' },
     { icon: '📈', label: 'Reports',      page: 'reports',    action: () => navigate('reports'),   perm: 'reports.payroll' },
   ];
-  const visible = actions.filter(a => role === 'ADMIN' || Auth.hasPermission(a.perm));
+  const visible = actions.filter(a => Auth.hasPermission(a.perm));
   const el = document.getElementById('quick-actions');
-  if (!el || !visible.length) return;
+  if (!el) return;
+  if (!visible.length) {
+    el.innerHTML = '';
+    return;
+  }
   el.innerHTML = visible.map((a, i) => `
     <div class="quick-action" onclick="(${a.action.toString()})()" style="animation:fadeInUp 0.4s ease ${i*0.08}s both">
       <div class="qa-icon">${a.icon}</div>

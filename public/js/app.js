@@ -51,7 +51,6 @@ const Auth = {
   },
   hasPermission(perm) {
     const u = this.getUser();
-    if (u.role === 'ADMIN') return true;
     const perms = u.permissions || [];
     return perms.includes(perm);
   }
@@ -172,9 +171,25 @@ const PAGE_INITS = {
   selfservice: () => initSelfservice()
 };
 
+const PAGE_ACCESS = {
+  dashboard:   () => true,
+  employees:   () => Auth.hasPermission('employees.view'),
+  attendance:  () => Auth.hasPermission('attendance.view'),
+  leave:       () => Auth.getUser().role === 'EMPLOYEE' || Auth.hasPermission('leave.view') || Auth.hasPermission('leave.apply'),
+  overtime:    () => Auth.getUser().role === 'EMPLOYEE' || Auth.hasPermission('overtime.view') || Auth.hasPermission('overtime.submit'),
+  payroll:     () => Auth.hasPermission('payroll.view'),
+  reports:     () => ['reports.payroll', 'reports.statutory', 'reports.p9', 'reports.audit'].some(p => Auth.hasPermission(p)),
+  settings:    () => Auth.hasPermission('admin.settings'),
+  selfservice: () => Auth.getUser().role === 'EMPLOYEE'
+};
+
 const _initialized = new Set();
 
 function navigate(page) {
+  if (PAGE_ACCESS[page] && !PAGE_ACCESS[page]()) {
+    toast('error', 'Access denied', 'You do not have permission to open this page.');
+    return;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const p = document.getElementById('page-' + page);
@@ -296,13 +311,17 @@ function buildSidebar(role) {
     items.push({ page: 'leave',      icon: '🏖',  label: 'Leave',      perm: 'leave.view' });
     items.push({ page: 'payroll',    icon: '💰', label: 'Payroll',    perm: 'payroll.view' });
     items.push({ section: 'Reports & Admin' });
-    items.push({ page: 'reports',   icon: '📈', label: 'Reports',    perm: 'reports.payroll' });
+    items.push({ page: 'reports',   icon: '📈', label: 'Reports',    perm: ['reports.view', 'reports.payroll', 'reports.statutory', 'reports.p9', 'reports.audit'] });
     items.push({ page: 'settings',  icon: '⚙',  label: 'Settings',   perm: 'admin.settings', roles: ['ADMIN', 'HR'] });
   }
   const nav = document.getElementById('sidebar-nav');
   nav.innerHTML = items.map(it => {
     if (it.section) return `<div class="nav-section"><div class="nav-section-label">${it.section}</div></div>`;
     if (it.roles && !it.roles.includes(role)) return '';
+    if (it.perm) {
+      const perms = Array.isArray(it.perm) ? it.perm : [it.perm];
+      if (!perms.some(perm => Auth.hasPermission(perm))) return '';
+    }
     return `<div class="nav-item" data-page="${it.page}" onclick="navigate('${it.page}')">
       <span class="nav-icon">${it.icon}</span>
       <span class="nav-label">${it.label}</span>
