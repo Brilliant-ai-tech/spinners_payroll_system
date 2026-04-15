@@ -8,34 +8,34 @@ const REPORTS = {
   payroll: {
     title: '💰 Payroll reports', color: 'gold',
     items: [
-      { id: 'payroll-summary', name: 'Payroll summary',        icon: '📊', desc: 'Period-level gross/net totals', needsPeriod: false, perm: 'reports.payroll' },
-      { id: 'dept-cost',       name: 'Department cost',         icon: '🏢', desc: 'Labour cost by department',    needsPeriod: true,  perm: 'reports.payroll' },
-      { id: 'bank-transfer',   name: 'Bank transfer schedule',  icon: '🏦', desc: 'Employee net pay per bank',    needsPeriod: true,  perm: 'reports.payroll' },
+      { id: 'payroll-summary', name: 'Payroll summary',        icon: '📊', desc: 'Period-level gross/net totals', needsPeriod: false },
+      { id: 'dept-cost',       name: 'Department cost',         icon: '🏢', desc: 'Labour cost by department',    needsPeriod: true },
+      { id: 'bank-transfer',   name: 'Bank transfer schedule',  icon: '🏦', desc: 'Employee net pay per bank',    needsPeriod: true },
     ]
   },
   statutory: {
     title: '🏛 Statutory reports', color: 'teal',
     items: [
-      { id: 'paye-p10',      name: 'PAYE P10',             icon: '📋', desc: 'KRA monthly PAYE return',     needsPeriod: true, perm: 'reports.statutory' },
-      { id: 'nssf',          name: 'NSSF contributions',   icon: '📦', desc: 'NSSF employee & employer',    needsPeriod: true, perm: 'reports.statutory' },
-      { id: 'nhif',          name: 'NHIF contributions',   icon: '🏥', desc: 'NHIF deductions list',        needsPeriod: true, perm: 'reports.statutory' },
-      { id: 'housing-levy',  name: 'Housing levy',         icon: '🏠', desc: 'Housing levy schedule',       needsPeriod: true, perm: 'reports.statutory' },
+      { id: 'paye-p10',      name: 'PAYE P10',             icon: '📋', desc: 'KRA monthly PAYE return',     needsPeriod: true },
+      { id: 'nssf',          name: 'NSSF contributions',   icon: '📦', desc: 'NSSF employee & employer',    needsPeriod: true },
+      { id: 'nhif',          name: 'NHIF contributions',   icon: '🏥', desc: 'NHIF deductions list',        needsPeriod: true },
+      { id: 'housing-levy',  name: 'Housing levy',         icon: '🏠', desc: 'Housing levy schedule',       needsPeriod: true },
     ]
   },
   hr: {
     title: '👥 HR reports', color: 'blue',
     items: [
-      { id: 'employee-register',  name: 'Employee register',      icon: '👤', desc: 'Full employee listing',       needsPeriod: false, perm: 'reports.payroll' },
-      { id: 'headcount',          name: 'Headcount by department', icon: '📊', desc: 'Staff count per department',  needsPeriod: false, perm: 'reports.payroll' },
-      { id: 'leave-balances',     name: 'Leave balances',          icon: '🏖',  desc: 'Leave taken vs entitled',    needsPeriod: false, perm: 'reports.payroll' },
-      { id: 'attendance-summary', name: 'Attendance summary',      icon: '📋', desc: 'Monthly attendance stats',   needsPeriod: false, perm: 'reports.payroll' },
+      { id: 'employee-register',  name: 'Employee register',      icon: '👤', desc: 'Full employee listing',       needsPeriod: false },
+      { id: 'headcount',          name: 'Headcount by department', icon: '📊', desc: 'Staff count per department',  needsPeriod: false },
+      { id: 'leave-balances',     name: 'Leave balances',          icon: '🏖',  desc: 'Leave taken vs entitled',    needsPeriod: false },
+      { id: 'attendance-summary', name: 'Attendance summary',      icon: '📋', desc: 'Monthly attendance stats',   needsPeriod: false },
     ]
   },
   annual: {
     title: '📅 Annual & audit', color: 'purple',
     items: [
-      { id: 'p9',    name: 'P9 annual certificate', icon: '📄', desc: 'Annual tax certificate per employee', needsPeriod: false, perm: 'reports.p9' },
-      { id: 'audit', name: 'Audit trail',            icon: '🔍', desc: 'Complete system audit log',          needsPeriod: false, perm: 'reports.audit' },
+      { id: 'p9',    name: 'P9 annual certificate', icon: '📄', desc: 'Annual tax certificate per employee', needsPeriod: false },
+      { id: 'audit', name: 'Audit trail',            icon: '🔍', desc: 'Complete system audit log',          needsPeriod: false },
     ]
   }
 };
@@ -138,14 +138,7 @@ async function initReports() {
 function renderReportsCatalog() {
   const el = document.getElementById('reports-catalog');
   if (!el) return;
-  const visibleCategories = Object.entries(REPORTS)
-    .map(([key, cat]) => [key, { ...cat, items: cat.items.filter(r => !r.perm || Auth.hasPermission(r.perm)) }])
-    .filter(([, cat]) => cat.items.length);
-  if (!visibleCategories.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">No reports available</div><div class="empty-sub">Your account does not have report access yet.</div></div>`;
-    return;
-  }
-  el.innerHTML = visibleCategories.map(([key, cat]) => `
+  el.innerHTML = Object.entries(REPORTS).map(([key, cat]) => `
     <div class="card card-${cat.color}">
       <div class="card-header"><span class="card-title">${cat.title}</span></div>
       <div class="card-body">
@@ -162,11 +155,6 @@ function renderReportsCatalog() {
 }
 
 async function openReport(reportId, needsPeriod) {
-  const report = Object.values(REPORTS).flatMap(cat => cat.items).find(item => item.id === reportId);
-  if (report?.perm && !Auth.hasPermission(report.perm)) {
-    toast('error', 'Access denied', 'You do not have permission to open this report.');
-    return;
-  }
   _currentReport = reportId;
   let params = '';
   if (needsPeriod) {

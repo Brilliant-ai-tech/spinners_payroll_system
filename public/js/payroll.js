@@ -3,13 +3,7 @@
 let _periods = [];
 let _selectedPeriodId = null;
 
-function canManagePayroll() {
-  return Auth.getUser().role === 'PAYROLL';
-}
-
 async function initPayroll() {
-  const addBtn = document.querySelector('#period-list > button');
-  if (addBtn) addBtn.style.display = canManagePayroll() ? '' : 'none';
   await loadPeriods();
 }
 
@@ -19,15 +13,7 @@ async function loadPeriods() {
     if (!_periods) return;
     renderPeriodList();
     // Auto-select first period
-    if (_periods.length) {
-      const targetId = _periods.some(p => p.period_id === _selectedPeriodId) ? _selectedPeriodId : _periods[0].period_id;
-      await selectPeriod(targetId);
-    } else {
-      _selectedPeriodId = null;
-      window._currentRuns = [];
-      window._currentPeriod = null;
-      document.getElementById('period-detail').innerHTML = `<div class="empty-state"><div class="empty-icon">💼</div><div class="empty-title">No payroll periods yet</div><div class="empty-sub">${canManagePayroll() ? 'Create a payroll period to calculate salaries, deductions, and payslips.' : 'No payroll periods have been created yet.'}</div></div>`;
-    }
+    if (_periods.length) selectPeriod(_periods[0].period_id);
   } catch (e) {
     toast('error', 'Load failed', e.message);
   }
@@ -35,6 +21,7 @@ async function loadPeriods() {
 
 function renderPeriodList() {
   const list = document.getElementById('period-list');
+  const addBtn = list.querySelector('button');
   const existingCards = list.querySelectorAll('.period-card');
   existingCards.forEach(c => c.remove());
 
@@ -144,7 +131,6 @@ function kpiMini(label, value, color) {
 }
 
 function getPeriodActions(period) {
-  if (!canManagePayroll()) return '';
   const btns = [];
   if (period.status === 'Open') {
     btns.push(`<button class="btn btn-secondary" onclick="showProcessConfirm(${period.period_id},'${period.period_name}')">⚙ Process payroll</button>`);
@@ -210,17 +196,13 @@ async function doMarkPaid(id) {
 
 // ── NEW PERIOD ────────────────────────────────────────────────────
 function openNewPeriod() {
-  if (!canManagePayroll()) {
-    toast('error', 'Access denied', 'Only the Payroll officer can create payroll periods.');
-    return;
-  }
   const now = new Date();
   document.getElementById('period-year').value = now.getFullYear();
   document.getElementById('period-month').value = now.getMonth() + 1;
   autofillPeriodDates();
   openModal('modal-new-period');
-  document.getElementById('period-year').onchange = autofillPeriodDates;
-  document.getElementById('period-month').onchange = autofillPeriodDates;
+  document.getElementById('period-year').addEventListener('change', autofillPeriodDates);
+  document.getElementById('period-month').addEventListener('change', autofillPeriodDates);
 }
 
 function autofillPeriodDates() {
@@ -246,10 +228,6 @@ function autofillPeriodDates() {
 }
 
 async function createPeriod() {
-  if (!canManagePayroll()) {
-    toast('error', 'Access denied', 'Only the Payroll officer can create payroll periods.');
-    return;
-  }
   const name  = document.getElementById('period-name').value.trim();
   const year  = document.getElementById('period-year').value;
   const month = document.getElementById('period-month').value;
@@ -258,16 +236,14 @@ async function createPeriod() {
   const pay   = document.getElementById('period-paydate').value;
   const wdays = document.getElementById('period-wdays').value;
   if (!name || !year || !month || !start || !end || !pay) { toast('warning', 'Required', 'Please fill all fields.'); return; }
-  if (new Date(start) > new Date(end)) { toast('warning', 'Invalid dates', 'Start date cannot be later than end date.'); return; }
-  if (new Date(pay) < new Date(start)) { toast('warning', 'Invalid pay date', 'Pay date cannot be before the period starts.'); return; }
   const btn = document.querySelector('#modal-new-period .btn-primary');
   btn.classList.add('btn-loading'); btn.disabled = true;
   try {
     const result = await API.post('/payroll/periods', { period_name: name, period_year: year, period_month: month, pay_date: pay, start_date: start, end_date: end, working_days: wdays });
     toast('success', 'Payroll updated', result?.message || `${name} period has been created and processed for all active employees.`);
     closeModal('modal-new-period');
-    _selectedPeriodId = result?.periodId || _selectedPeriodId;
     await loadPeriods();
+    if (result?.periodId) await selectPeriod(result.periodId);
   } catch (e) {
     toast('error', 'Error', e.message);
   } finally {

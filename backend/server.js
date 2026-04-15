@@ -273,94 +273,6 @@ async function ensureEmploymentTypeSchema() {
   }
 }
 
-const PERMISSION_DEFINITIONS = [
-  ['leave.view', 'leave'],
-  ['leave.apply', 'leave'],
-  ['leave.approve', 'leave'],
-  ['attendance.view', 'attendance'],
-  ['attendance.record', 'attendance'],
-  ['payroll.view', 'payroll'],
-  ['payroll.process', 'payroll'],
-  ['payroll.approve', 'payroll'],
-  ['payroll.markpaid', 'payroll'],
-  ['employees.view', 'employees'],
-  ['employees.create', 'employees'],
-  ['employees.edit', 'employees'],
-  ['employees.delete', 'employees'],
-  ['admin.users', 'admin'],
-  ['admin.settings', 'admin'],
-  ['reports.view', 'reports'],
-  ['reports.payroll', 'reports'],
-  ['reports.statutory', 'reports'],
-  ['reports.p9', 'reports'],
-  ['reports.audit', 'reports'],
-  ['overtime.submit', 'overtime'],
-  ['overtime.view', 'overtime'],
-  ['overtime.approve', 'overtime']
-];
-
-const ROLE_PERMISSION_MAP = {
-  ADMIN: [
-    'leave.view', 'leave.apply', 'leave.approve',
-    'attendance.view', 'attendance.record',
-    'employees.view', 'employees.create', 'employees.edit', 'employees.delete',
-    'admin.users', 'admin.settings',
-    'reports.view', 'reports.audit'
-  ],
-  HR: [
-    'leave.view', 'leave.apply', 'leave.approve',
-    'attendance.view',
-    'employees.view', 'employees.create', 'employees.edit', 'employees.delete',
-    'reports.view',
-    'overtime.view', 'overtime.approve'
-  ],
-  PAYROLL: [
-    'attendance.view',
-    'employees.view',
-    'leave.view',
-    'payroll.view', 'payroll.process', 'payroll.approve', 'payroll.markpaid',
-    'reports.view', 'reports.payroll', 'reports.statutory', 'reports.p9',
-    'overtime.view'
-  ],
-  EMPLOYEE: [
-    'leave.apply',
-    'overtime.submit'
-  ]
-};
-
-async function ensurePermissionSchema() {
-  for (const [permCode, module] of PERMISSION_DEFINITIONS) {
-    await pool.execute(
-      'INSERT INTO permissions (perm_code, module) VALUES (?, ?) ON DUPLICATE KEY UPDATE module=VALUES(module)',
-      [permCode, module]
-    );
-  }
-
-  for (const [roleCode, permCodes] of Object.entries(ROLE_PERMISSION_MAP)) {
-    const roleId = await getRoleIdByCode(roleCode);
-    if (!roleId) continue;
-
-    const placeholders = PERMISSION_DEFINITIONS.map(() => '?').join(',');
-    await pool.execute(
-      `DELETE rp
-       FROM role_permissions rp
-       JOIN permissions p ON p.perm_id=rp.perm_id
-       WHERE rp.role_id=?
-         AND p.perm_code IN (${placeholders})
-         AND p.perm_code NOT IN (${permCodes.map(() => '?').join(',')})`,
-      [roleId, ...PERMISSION_DEFINITIONS.map(([permCode]) => permCode), ...permCodes]
-    );
-
-    for (const permCode of permCodes) {
-      await pool.execute(
-        `INSERT IGNORE INTO role_permissions (role_id, perm_id)
-         SELECT ?, perm_id FROM permissions WHERE perm_code=?`,
-        [roleId, permCode]
-      );
-    }
-  }
-}
-
 let initPromise;
 function initApp() {
   if (!initPromise) {
@@ -369,7 +281,6 @@ function initApp() {
       await ensureUsersApprovalSchema();
       await ensureEmployeeStatusSchema();
       await ensureEmploymentTypeSchema();
-      await ensurePermissionSchema();
     })();
   }
   return initPromise;
@@ -399,6 +310,7 @@ function authenticate(req, res, next) {
 function requirePerm(perm) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (req.user.role === 'ADMIN') return next();
     const perms = req.user.permissions || [];
     if (perms.includes(perm)) return next();
     res.status(403).json({ error: 'Access denied' });
@@ -1546,26 +1458,10 @@ app.get('/api/payroll/periods', authenticate, requirePerm('payroll.view'), async
   }
 });
 
-app.post('/api/payroll/periods', authenticate, requirePayrollOnly, requirePerm('payroll.process'), async (req, res) => {
+app.post('/api/payroll/periods', authenticate, requirePerm('payroll.process'), async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { period_name, period_year, period_month, pay_date, start_date, end_date, working_days } = req.body;
-    if (!period_name || !period_year || !period_month || !pay_date || !start_date || !end_date) {
-      return res.status(400).json({ error: 'All payroll period fields are required.' });
-    }
-    if (new Date(start_date) > new Date(end_date)) {
-      return res.status(400).json({ error: 'Start date cannot be later than end date.' });
-    }
-    if (new Date(pay_date) < new Date(start_date)) {
-      return res.status(400).json({ error: 'Pay date cannot be before the period start date.' });
-    }
-    const [[existingPeriod]] = await conn.execute(
-      'SELECT period_id FROM payroll_periods WHERE period_year=? AND period_month=? LIMIT 1',
-      [period_year, period_month]
-    );
-    if (existingPeriod) {
-      return res.status(409).json({ error: 'A payroll period for that month already exists.' });
-    }
     await conn.beginTransaction();
     const [result] = await conn.execute(
       "INSERT INTO payroll_periods (period_name,period_year,period_month,pay_date,start_date,end_date,working_days,status) VALUES (?,?,?,?,?,?,?, 'Open')",
@@ -1593,7 +1489,7 @@ app.get('/api/payroll/periods/:id/runs', authenticate, requirePerm('payroll.view
   }
 });
 
-app.post('/api/payroll/periods/:id/process', authenticate, requirePayrollOnly, requirePerm('payroll.process'), async (req, res) => {
+app.post('/api/payroll/periods/:id/process', authenticate, requirePerm('payroll.process'), async (req, res) => {
   try {
     await pool.execute('CALL sp_process_period(?,?)', [req.params.id, req.user.userId]);
     await logAudit(req.user.userId, req.user.username, 'PROCESS', 'PAYROLL', req.params.id, null, `Processed payroll period ${req.params.id}`);
@@ -1604,7 +1500,7 @@ app.post('/api/payroll/periods/:id/process', authenticate, requirePayrollOnly, r
   }
 });
 
-app.post('/api/payroll/periods/:id/approve', authenticate, requirePayrollOnly, requirePerm('payroll.approve'), async (req, res) => {
+app.post('/api/payroll/periods/:id/approve', authenticate, requirePerm('payroll.approve'), async (req, res) => {
   try {
     await pool.execute('CALL sp_approve_period(?,?)', [req.params.id, req.user.userId]);
     await logAudit(req.user.userId, req.user.username, 'APPROVE', 'PAYROLL', req.params.id, null, `Approved payroll period ${req.params.id}`);
@@ -1615,7 +1511,7 @@ app.post('/api/payroll/periods/:id/approve', authenticate, requirePayrollOnly, r
   }
 });
 
-app.post('/api/payroll/periods/:id/mark-paid', authenticate, requirePayrollOnly, requirePerm('payroll.markpaid'), async (req, res) => {
+app.post('/api/payroll/periods/:id/mark-paid', authenticate, requirePerm('payroll.markpaid'), async (req, res) => {
   try {
     await pool.execute('CALL sp_mark_period_paid(?,?)', [req.params.id, req.user.userId]);
     await logAudit(req.user.userId, req.user.username, 'MARK_PAID', 'PAYROLL', req.params.id, null, `Marked payroll period ${req.params.id} as paid`);

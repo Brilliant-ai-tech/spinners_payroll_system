@@ -110,22 +110,14 @@ INSERT INTO permissions (perm_code, module) VALUES
 ('leave.apply', 'leave'),
 ('leave.approve', 'leave'),
 ('attendance.view', 'attendance'),
-('attendance.record', 'attendance'),
 ('payroll.view', 'payroll'),
 ('payroll.process', 'payroll'),
-('payroll.approve', 'payroll'),
-('payroll.markpaid', 'payroll'),
 ('employees.view', 'employees'),
 ('employees.create', 'employees'),
 ('employees.edit', 'employees'),
 ('employees.delete', 'employees'),
 ('admin.users', 'admin'),
-('admin.settings', 'admin'),
 ('reports.view', 'reports'),
-('reports.payroll', 'reports'),
-('reports.statutory', 'reports'),
-('reports.p9', 'reports'),
-('reports.audit', 'reports'),
 ('overtime.submit', 'overtime'),
 ('overtime.view', 'overtime'),
 ('overtime.approve', 'overtime');
@@ -142,9 +134,9 @@ CREATE TABLE role_permissions (
 INSERT INTO role_permissions (role_id, perm_id)
 SELECT r.role_id, p.perm_id
 FROM roles r, permissions p
-WHERE (r.role_code = 'ADMIN' AND p.perm_code IN ('leave.view', 'leave.apply', 'leave.approve', 'attendance.view', 'attendance.record', 'employees.view', 'employees.create', 'employees.edit', 'employees.delete', 'admin.users', 'admin.settings', 'reports.view', 'reports.audit')) OR
-      (r.role_code = 'HR' AND p.perm_code IN ('leave.view', 'leave.apply', 'leave.approve', 'attendance.view', 'employees.view', 'employees.create', 'employees.edit', 'employees.delete', 'reports.view', 'overtime.view', 'overtime.approve')) OR
-      (r.role_code = 'PAYROLL' AND p.perm_code IN ('payroll.view', 'payroll.process', 'payroll.approve', 'payroll.markpaid', 'attendance.view', 'employees.view', 'leave.view', 'reports.view', 'reports.payroll', 'reports.statutory', 'reports.p9', 'overtime.view')) OR
+WHERE (r.role_code = 'ADMIN' AND p.perm_code <> 'overtime.approve') OR
+      (r.role_code = 'HR' AND p.perm_code IN ('leave.view', 'leave.apply', 'leave.approve', 'attendance.view', 'employees.view', 'reports.view', 'overtime.view', 'overtime.approve')) OR
+      (r.role_code = 'PAYROLL' AND p.perm_code IN ('payroll.view', 'payroll.process', 'attendance.view', 'employees.view', 'leave.view', 'reports.view', 'overtime.view')) OR
       (r.role_code = 'EMPLOYEE' AND p.perm_code IN ('leave.apply', 'overtime.submit'));
 
 -- Departments
